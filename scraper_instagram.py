@@ -1,6 +1,7 @@
 import instaloader
 import pandas as pd
 from datetime import datetime
+import os
 
 # Lista de cuentas a analizar
 ACCOUNTS = [
@@ -21,22 +22,18 @@ def scrape_instagram_data():
                                 compress_json=False)
 
     data_rows = []
-
-    # Fecha de extracción
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     for username in ACCOUNTS:
         try:
             profile = instaloader.Profile.from_username(L.context, username)
 
-            # Datos básicos
             followers = profile.followers
             following = profile.followees
             posts_count = profile.mediacount
             full_name = profile.full_name
             bio = profile.biography
 
-            # Últimas 5 publicaciones
             posts = profile.get_posts()
             last_posts = []
 
@@ -48,36 +45,41 @@ def scrape_instagram_data():
                     "post_date": post.date.strftime("%Y-%m-%d"),
                     "likes": post.likes,
                     "comments": post.comments,
-                    "caption": post.caption[:120] if post.caption else ""  # solo primeras 120 letras
+                    "caption": post.caption[:120] if post.caption else ""
                 })
 
-            # Una fila por perfil
-            data_rows.append({
-                "username": username,
-                "full_name": full_name,
-                "biography": bio,
-                "followers": followers,
-                "following": following,
-                "total_posts": posts_count,
-                "timestamp": timestamp,
-                "last_posts": last_posts
-            })
+            for post_info in last_posts:
+                data_rows.append({
+                    "timestamp": timestamp,
+                    "username": username,
+                    "full_name": full_name,
+                    "biography": bio,
+                    "followers": followers,
+                    "following": following,
+                    "total_posts": posts_count,
+                    **post_info
+                })
 
             print(f"Datos obtenidos de {username}")
 
         except Exception as e:
             print(f"Error al procesar {username}: {e}")
 
-    # Convertir a un dataframe plano
-    df = pd.json_normalize(data_rows, "last_posts",
-                           ["username", "full_name", "biography", "followers",
-                            "following", "total_posts", "timestamp"])
+    df_new = pd.DataFrame(data_rows)
 
-    # Guardar CSV
-    filename = f"instagram_data_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.csv"
-    df.to_csv(filename, index=False)
+    # Cargar histórico anterior si existe
+    historico_file = "historico_instagram.csv"
 
-    print(f"Archivo CSV guardado: {filename}")
+    if os.path.exists(historico_file):
+        df_old = pd.read_csv(historico_file)
+        df_final = pd.concat([df_old, df_new], ignore_index=True)
+    else:
+        df_final = df_new
+
+    # Guardar histórico actualizado
+    df_final.to_csv(historico_file, index=False)
+
+    print(f"Histórico actualizado: {historico_file}")
 
 
 if __name__ == "__main__":
