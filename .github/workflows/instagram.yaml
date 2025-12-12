@@ -2,7 +2,7 @@ name: Scraper Instagram Diario
 
 on:
   schedule:
-    - cron: "0 15 * * *"   # 9:00 AM CDMX = 15:00 UTC
+    - cron: "0 15 * * *"   # 9:00 AM CDMX (15:00 UTC)
   workflow_dispatch:
 
 jobs:
@@ -13,6 +13,13 @@ jobs:
       - name: Checkout repositorio
         uses: actions/checkout@v3
 
+      - name: Descargar histórico previo (si existe)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: instagram-historico
+          path: .
+
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
@@ -21,11 +28,11 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Ejecutar script de Instagram
+      - name: Ejecutar scraper
         run: python scraper_instagram.py
 
-      - name: Subir CSV como artifact
+      - name: Subir histórico actualizado
         uses: actions/upload-artifact@v4
         with:
-          name: instagram-csv
-          path: "*.csv"
+          name: instagram-historico
+          path: historico_instagram.csv
