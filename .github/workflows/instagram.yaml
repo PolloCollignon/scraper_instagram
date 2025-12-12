@@ -1,0 +1,31 @@
+name: Scraper Instagram Diario
+
+on:
+  schedule:
+    - cron: "0 15 * * *"   # 9:00 AM CDMX = 15:00 UTC
+  workflow_dispatch:
+
+jobs:
+  run-instagram-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar script de Instagram
+        run: python scraper_instagram.py
+
+      - name: Subir CSV como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instagram-csv
+          path: "*.csv"
