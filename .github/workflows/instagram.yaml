@@ -1,8 +1,11 @@
 name: Scraper Instagram Diario
 
+permissions:
+  contents: write
+
 on:
   schedule:
-    - cron: "0 15 * * *"   # 9:00 AM CDMX
+    - cron: "0 15 * * *"
   workflow_dispatch:
 
 jobs:
@@ -11,10 +14,10 @@ jobs:
 
     steps:
       - name: Checkout repositorio
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
