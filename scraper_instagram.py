@@ -1,9 +1,8 @@
 import instaloader
-import pandas as pd
+import sqlite3
 from datetime import datetime
-import os
 
-# Lista de cuentas a analizar
+# Lista de cuentas
 ACCOUNTS = [
     "mum.mx",
     "lebump.oficial",
@@ -12,16 +11,46 @@ ACCOUNTS = [
     "labarriguitademama"
 ]
 
+DB_NAME = "instagram.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS datos_instagram (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        username TEXT,
+        full_name TEXT,
+        biography TEXT,
+        followers INTEGER,
+        following INTEGER,
+        total_posts INTEGER,
+        post_shortcode TEXT UNIQUE,
+        post_date TEXT,
+        likes INTEGER,
+        comments INTEGER,
+        caption TEXT
+    )
+    """)
+
+    conn.commit()
+    return conn, cursor
+
+
 def scrape_instagram_data():
+    conn, cursor = init_db()
 
-    L = instaloader.Instaloader(download_pictures=False,
-                                download_videos=False,
-                                download_video_thumbnails=False,
-                                download_comments=False,
-                                save_metadata=False,
-                                compress_json=False)
+    L = instaloader.Instaloader(
+        download_pictures=False,
+        download_videos=False,
+        download_video_thumbnails=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False
+    )
 
-    data_rows = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     for username in ACCOUNTS:
@@ -35,51 +64,42 @@ def scrape_instagram_data():
             bio = profile.biography
 
             posts = profile.get_posts()
-            last_posts = []
 
             for i, post in enumerate(posts):
                 if i >= 5:
                     break
-                last_posts.append({
-                    "post_shortcode": post.shortcode,
-                    "post_date": post.date.strftime("%Y-%m-%d"),
-                    "likes": post.likes,
-                    "comments": post.comments,
-                    "caption": post.caption[:120] if post.caption else ""
-                })
 
-            for post_info in last_posts:
-                data_rows.append({
-                    "timestamp": timestamp,
-                    "username": username,
-                    "full_name": full_name,
-                    "biography": bio,
-                    "followers": followers,
-                    "following": following,
-                    "total_posts": posts_count,
-                    **post_info
-                })
+                cursor.execute("""
+                INSERT OR IGNORE INTO datos_instagram (
+                    timestamp, username, full_name, biography,
+                    followers, following, total_posts,
+                    post_shortcode, post_date, likes, comments, caption
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    timestamp,
+                    username,
+                    full_name,
+                    bio,
+                    followers,
+                    following,
+                    posts_count,
+                    post.shortcode,
+                    post.date.strftime("%Y-%m-%d"),
+                    post.likes,
+                    post.comments,
+                    post.caption[:120] if post.caption else ""
+                ))
 
-            print(f"Datos obtenidos de {username}")
+            print(f"✅ Datos guardados de {username}")
 
         except Exception as e:
-            print(f"Error al procesar {username}: {e}")
+            print(f"❌ Error con {username}: {e}")
 
-    df_new = pd.DataFrame(data_rows)
+    conn.commit()
+    conn.close()
 
-    # Cargar histórico anterior si existe
-    historico_file = "historico_instagram.csv"
-
-    if os.path.exists(historico_file):
-        df_old = pd.read_csv(historico_file)
-        df_final = pd.concat([df_old, df_new], ignore_index=True)
-    else:
-        df_final = df_new
-
-    # Guardar histórico actualizado
-    df_final.to_csv(historico_file, index=False)
-
-    print(f"Histórico actualizado: {historico_file}")
+    print("💾 Datos guardados en instagram.db")
 
 
 if __name__ == "__main__":
