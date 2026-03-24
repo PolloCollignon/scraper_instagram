@@ -13,6 +13,7 @@ ACCOUNTS = [
 
 DB_NAME = "instagram.db"
 
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -53,8 +54,12 @@ def scrape_instagram_data():
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+    total_insertados = 0
+
     for username in ACCOUNTS:
         try:
+            print(f"\n🔍 Scrapeando: {username}")
+
             profile = instaloader.Profile.from_username(L.context, username)
 
             followers = profile.followers
@@ -65,9 +70,13 @@ def scrape_instagram_data():
 
             posts = profile.get_posts()
 
+            encontrados = 0
+
             for i, post in enumerate(posts):
                 if i >= 5:
                     break
+
+                encontrados += 1
 
                 cursor.execute("""
                 INSERT OR IGNORE INTO datos_instagram (
@@ -91,10 +100,19 @@ def scrape_instagram_data():
                     post.caption[:120] if post.caption else ""
                 ))
 
-            print(f"✅ Datos guardados de {username}")
+                total_insertados += cursor.rowcount
+
+            print(f"✅ {username} → {encontrados} posts encontrados")
 
         except Exception as e:
             print(f"❌ Error con {username}: {e}")
+
+    # 🔍 DEBUG FINAL
+    cursor.execute("SELECT COUNT(*) FROM datos_instagram")
+    total_db = cursor.fetchone()[0]
+
+    print(f"\n📊 TOTAL REGISTROS EN DB: {total_db}")
+    print(f"🆕 INSERTADOS EN ESTA EJECUCIÓN: {total_insertados}")
 
     conn.commit()
     conn.close()
